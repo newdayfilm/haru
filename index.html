@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>하루 일정표</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&family=Noto+Sans+KR:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #f0ede8;
+  --surface: #faf9f7;
+  --surface2: #f3f1ed;
+  --border: rgba(0,0,0,0.08);
+  --text-1: #1a1a1a;
+  --text-2: #6b6560;
+  --text-3: #a8a39e;
+  --accent: #2d2d2d;
+  --radius: 20px;
+}
+
+body {
+  font-family: 'DM Sans', 'Noto Sans KR', sans-serif;
+  background: var(--bg);
+  color: var(--text-1);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2.5rem 1rem 4rem;
+  gap: 1.25rem;
+}
+
+/* ── Header ── */
+.header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.header h1 {
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.header .date-line {
+  font-size: 22px;
+  font-weight: 300;
+  color: var(--text-1);
+  letter-spacing: -0.5px;
+}
+
+/* ── Clock card ── */
+.clock-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 2rem 2rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  width: 660px;
+  box-shadow: 0 2px 20px rgba(0,0,0,0.04);
+}
+
+/* ── Stats ── */
+.stat-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.stat {
+  background: var(--surface2);
+  border-radius: 12px;
+  padding: 9px 18px;
+  text-align: center;
+  min-width: 72px;
+}
+.stat-val {
+  font-family: 'DM Mono', monospace;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-1);
+  letter-spacing: -0.3px;
+}
+.stat-lbl {
+  font-size: 10px;
+  color: var(--text-3);
+  margin-top: 3px;
+  letter-spacing: 0.05em;
+}
+
+/* ── Legend ── */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px 16px;
+  max-width: 480px;
+}
+.leg-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+.leg-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.leg-time {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+/* ── Editor panel ── */
+.panel {
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 1.5rem 1.75rem 1.25rem;
+  width: 660px;
+  box-shadow: 0 2px 20px rgba(0,0,0,0.04);
+}
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.panel h3 {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.grid-head {
+  display: grid;
+  grid-template-columns: minmax(0,2fr) minmax(100px,1.4fr) minmax(100px,1.4fr) 36px 36px;
+  gap: 8px;
+  margin-bottom: 6px;
+  padding: 0 2px;
+}
+.gh {
+  font-size: 10px;
+  color: var(--text-3);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: center;
+}
+.gh:first-child { text-align: left; }
+
+.slot-row {
+  display: grid;
+  grid-template-columns: minmax(0,2fr) minmax(100px,1.4fr) minmax(100px,1.4fr) 36px 36px;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 7px;
+}
+.slot-row input[type=text],
+.slot-row input[type=time] {
+  font-size: 13px;
+  font-family: 'DM Sans', 'Noto Sans KR', sans-serif;
+  padding: 7px 10px;
+  height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text-1);
+  width: 100%;
+  min-width: 0;
+  transition: border-color 0.15s, background 0.15s;
+  outline: none;
+}
+.slot-row input[type=text]:focus,
+.slot-row input[type=time]:focus {
+  border-color: rgba(0,0,0,0.2);
+  background: #fff;
+}
+.slot-row input[type=time] {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  padding: 7px 6px;
+}
+.slot-row input[type=color] {
+  width: 32px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  padding: 3px;
+  background: var(--surface2);
+}
+.del-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 15px;
+  color: var(--text-3);
+  height: 36px;
+  width: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s;
+}
+.del-btn:hover { background: #fff0f0; color: #c00; border-color: #fcc; }
+
+.btn-row { display: flex; gap: 8px; margin-top: 12px; }
+.btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: 'DM Sans', 'Noto Sans KR', sans-serif;
+  letter-spacing: 0.03em;
+  color: var(--text-2);
+  padding: 9px 16px;
+  transition: background 0.15s, border-color 0.15s;
+}
+.btn:hover { background: var(--surface2); border-color: rgba(0,0,0,0.14); }
+.btn-primary {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.btn-primary:hover { background: #444; border-color: #444; }
+
+@media(max-width:700px) {
+  .clock-card, .panel { width: 100%; }
+  svg#clock { width: 100% !important; height: auto !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Daily Schedule</h1>
+  <div class="date-line" id="todayDate"></div>
+</div>
+
+<div class="clock-card">
+  <svg id="clock" viewBox="0 0 480 480" xmlns="http://www.w3.org/2000/svg" style="width:540px;height:540px;"></svg>
+  <div class="stat-row" id="stats"></div>
+  <div class="legend" id="legend"></div>
+</div>
+
+<div class="panel">
+  <div class="panel-header">
+    <h3>일정 편집</h3>
+  </div>
+  <div class="grid-head">
+    <div class="gh">활동</div>
+    <div class="gh">시작</div>
+    <div class="gh">종료</div>
+    <div class="gh" style="text-align:center">색</div>
+    <div></div>
+  </div>
+  <div id="slots"></div>
+  <div class="btn-row">
+    <button class="btn" onclick="addSlot()">+ 추가</button>
+    <button class="btn btn-primary" onclick="downloadJPG()">↓ JPG 저장</button>
+    <button class="btn" onclick="downloadHTML()">↓ HTML 저장</button>
+  </div>
+</div>
+
+<script>
+/* ── Palette ── */
+const PALETTE = [
+  '#C8B4D8','#8ECFCF','#F6B88A','#90D090','#F6DC8A',
+  '#8CB8F6','#F68CB8','#B0D98A','#D4AAAA','#AAC8D4'
+];
+const START_H = 6, END_H = 18;
+
+let slots = [
+  { label:'기상 / 준비', start:'06:00', end:'07:00', color:'#C8B4D8' },
+  { label:'오전 공부',   start:'07:00', end:'12:00', color:'#8ECFCF' },
+  { label:'점심 / 휴식', start:'12:00', end:'13:30', color:'#F6B88A' },
+  { label:'오후 공부',   start:'13:30', end:'17:30', color:'#90D090' },
+  { label:'운동',        start:'17:30', end:'18:00', color:'#F6DC8A' },
+];
+
+/* ── Date header ── */
+function setDateHeader(){
+  const d = new Date();
+  const wd = ['SUN','MON','TUE','WED','THU','FRI','SAT'][d.getDay()];
+  const mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()];
+  document.getElementById('todayDate').textContent =
+    `${mo} ${d.getDate()}, ${d.getFullYear()} · ${wd}`;
+}
+setDateHeader();
+
+/* ── Helpers ── */
+function timeToMin(t){ const [h,m]=t.split(':').map(Number); return h*60+m; }
+function slotDuration(s){ let sm=timeToMin(s.start),em=timeToMin(s.end); if(em<sm)em+=1440; return em-sm; }
+function clamp(v,lo,hi){ return Math.min(Math.max(v,lo),hi); }
+
+function minToAngle(totalMin){
+  const offset = totalMin - START_H*60;
+  return (offset/((END_H-START_H)*60)) * 2*Math.PI + Math.PI;
+}
+function polar(a,r,cx,cy){ return { x: cx+r*Math.sin(a), y: cy-r*Math.cos(a) }; }
+
+/* ── SVG builder ── */
+function buildSVG(W, H, forExport){
+  const S = forExport ? 2 : 1;          // pixel scale factor
+  const vw = W, vh = H;                 // viewBox always logical
+  const cx = vw/2, cy = vh/2;
+  const R  = Math.min(vw,vh)/2 - (forExport ? 54 : 42);
+  const iR = R * 0.26;
+  const midR = (R + iR) / 2;
+
+  const bg      = forExport ? '#FDFCFB' : '#f5f4f0';
+  const nightBg = forExport ? '#EDEBE6' : 'rgba(0,0,0,0.055)';
+  const gridC   = forExport ? '#E6E3DC' : 'rgba(0,0,0,0.06)';
+  const tickMaj = forExport ? '#888'    : '#999';
+  const tickMin = forExport ? '#BBB'    : '#ccc';
+  const lblC    = forExport ? '#888'    : '#999';
+  const centerC = forExport ? '#777'    : '#888';
+  const fontStack = "'DM Sans','Noto Sans KR',Arial,sans-serif";
+  const monoStack = "'DM Mono','Courier New',monospace";
+
+  let o = `<svg width="${vw}" height="${vh}" viewBox="0 0 ${vw} ${vh}" xmlns="http://www.w3.org/2000/svg">`;
+  if(forExport) o += `<rect width="${vw}" height="${vh}" fill="#FDFCFB"/>`;
+
+  /* outer disc */
+  o += `<circle cx="${cx}" cy="${cy}" r="${R}" fill="${bg}" stroke="${gridC}" stroke-width="${forExport?1.5:1}"/>`;
+
+  /* night arc (18:00–06:00) */
+  {
+    const sa = minToAngle(END_H*60), ea = minToAngle(START_H*60+1440);
+    const p1=polar(sa,R,cx,cy), p2=polar(ea,R,cx,cy), p3=polar(ea,iR,cx,cy), p4=polar(sa,iR,cx,cy);
+    o += `<path d="M${p1.x} ${p1.y} A${R} ${R} 0 1 1 ${p2.x} ${p2.y} L${p3.x} ${p3.y} A${iR} ${iR} 0 1 0 ${p4.x} ${p4.y}Z" fill="${nightBg}"/>`;
+    const lp = polar(0, midR, cx, cy);
+    o += `<text x="${lp.x}" y="${lp.y}" text-anchor="middle" dominant-baseline="middle" font-size="${forExport?13:11}" font-family="${fontStack}" fill="${forExport?'#AAA':'#C0BDB8'}" font-weight="300">수면</text>`;
+  }
+
+  /* guide rings */
+  [0.38, 0.65].forEach(f=>{
+    const r = iR + (R-iR)*f;
+    o += `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${gridC}" stroke-width="${forExport?0.8:0.5}" stroke-dasharray="3,5"/>`;
+  });
+
+  /* slot arcs */
+  slots.forEach(sl=>{
+    const sm = clamp(timeToMin(sl.start), START_H*60, END_H*60);
+    const em = clamp(timeToMin(sl.end),   START_H*60, END_H*60);
+    if(em <= sm) return;
+    const sa = minToAngle(sm), ea = minToAngle(em);
+    let diff = ea - sa; if(diff < 0) diff += 2*Math.PI; if(diff < 0.01) return;
+    const p1=polar(sa,R-1,cx,cy), p2=polar(ea,R-1,cx,cy), p3=polar(ea,iR+1,cx,cy), p4=polar(sa,iR+1,cx,cy);
+    const lg = diff > Math.PI ? 1 : 0;
+    o += `<path d="M${p1.x} ${p1.y} A${R-1} ${R-1} 0 ${lg} 1 ${p2.x} ${p2.y} L${p3.x} ${p3.y} A${iR+1} ${iR+1} 0 ${lg} 0 ${p4.x} ${p4.y}Z" fill="${sl.color}" fill-opacity="0.88" stroke="#FDFCFB" stroke-width="${forExport?2.5:2}"/>`;
+
+    /* label */
+    if(diff > 0.14){
+      const lp = polar(sa + diff/2, midR + 2, cx, cy);
+      const fs = diff > 0.6 ? (forExport?15:13) : diff > 0.28 ? (forExport?12:10) : (forExport?10:9);
+      o += `<text x="${lp.x}" y="${lp.y}" text-anchor="middle" dominant-baseline="middle" font-size="${fs}" font-family="${fontStack}" fill="#333" font-weight="500">${sl.label}</text>`;
+    }
+  });
+
+  /* hour ticks & labels */
+  for(let h = START_H; h <= END_H; h++){
+    const ang = minToAngle(h*60);
+    const maj = (h % 6 === 0 || h === START_H || h === END_H);
+    const mid = h % 3 === 0;
+    const tl  = maj ? (forExport?18:14) : mid ? (forExport?12:9) : (forExport?6:5);
+    const sw  = maj ? (forExport?2:1.5) : (forExport?1:0.7);
+    const pa  = polar(ang, R, cx, cy), pb = polar(ang, R-tl, cx, cy);
+    o += `<line x1="${pa.x}" y1="${pa.y}" x2="${pb.x}" y2="${pb.y}" stroke="${maj?tickMaj:tickMin}" stroke-width="${sw}" stroke-linecap="round"/>`;
+
+    if(h === END_H) continue;
+    if(mid || h === START_H){
+      const lp = polar(ang, R + (forExport?26:20), cx, cy);
+      o += `<text x="${lp.x}" y="${lp.y}" text-anchor="middle" dominant-baseline="middle" font-size="${forExport?13:11}" font-family="${monoStack}" fill="${lblC}" font-weight="400">${String(h).padStart(2,'0')}</text>`;
+    }
+  }
+
+  /* center circle */
+  o += `<circle cx="${cx}" cy="${cy}" r="${iR}" fill="${forExport?'#FDFCFB':'#f5f4f0'}" stroke="${gridC}" stroke-width="${forExport?1.5:1}"/>`;
+
+  const tot = slots.reduce((a,s)=>a+slotDuration(s),0);
+  const th = Math.floor(tot/60), tm = tot%60;
+  const totStr = th + 'h' + (tm ? ' '+tm+'m' : '');
+  o += `<text x="${cx}" y="${cy-10}" text-anchor="middle" font-size="${forExport?11:9}" font-family="${fontStack}" fill="${forExport?'#AAA':centerC}" font-weight="300" letter-spacing="0.08em">TOTAL</text>`;
+  o += `<text x="${cx}" y="${cy+8}" text-anchor="middle" font-size="${forExport?16:13}" font-family="${monoStack}" fill="${forExport?'#555':centerC}" font-weight="500">${totStr}</text>`;
+
+  o += `</svg>`;
+  return o;
+}
+
+/* ── Draw ── */
+function drawClock(){
+  const raw = buildSVG(480, 480, false);
+  const inner = raw.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '');
+  document.getElementById('clock').innerHTML = inner;
+}
+
+function drawStats(){
+  const cats = { 공부:0, 휴식:0, 운동:0, 기타:0 };
+  slots.forEach(s=>{
+    const d = slotDuration(s);
+    if(/공부|학습|수업/.test(s.label))       cats['공부'] += d;
+    else if(/휴식|점심|저녁|식사|밥/.test(s.label)) cats['휴식'] += d;
+    else if(/운동|헬스|러닝|gym/.test(s.label))    cats['운동'] += d;
+    else cats['기타'] += d;
+  });
+  document.getElementById('stats').innerHTML = Object.entries(cats)
+    .filter(([,v])=>v>0)
+    .map(([k,v])=>{
+      const h=Math.floor(v/60), m=v%60;
+      return `<div class="stat">
+        <div class="stat-val">${h}h${m?`<span style="font-size:12px;color:var(--text-3)"> ${m}m</span>`:''}</div>
+        <div class="stat-lbl">${k}</div>
+      </div>`;
+    }).join('');
+}
+
+function drawLegend(){
+  document.getElementById('legend').innerHTML = slots.map(s=>{
+    const d=slotDuration(s), h=Math.floor(d/60), m=d%60;
+    return `<div class="leg-item">
+      <div class="leg-dot" style="background:${s.color}"></div>
+      <span>${s.label}</span>
+      <span class="leg-time">${h}h${m?` ${m}m`:''}</span>
+    </div>`;
+  }).join('');
+}
+
+function drawInputs(){
+  const c = document.getElementById('slots');
+  c.innerHTML = '';
+  slots.forEach((s,i)=>{
+    const row = document.createElement('div');
+    row.className = 'slot-row';
+    row.innerHTML = `
+      <input type="text"  value="${s.label}" onchange="slots[${i}].label=this.value;refresh()">
+      <input type="time"  value="${s.start}" onchange="slots[${i}].start=this.value;refresh()">
+      <input type="time"  value="${s.end}"   onchange="slots[${i}].end=this.value;refresh()">
+      <input type="color" value="${s.color}" oninput="slots[${i}].color=this.value;refresh()">
+      <button class="del-btn" onclick="removeSlot(${i})">×</button>`;
+    c.appendChild(row);
+  });
+}
+
+function refresh(){ drawClock(); drawStats(); drawLegend(); drawInputs(); }
+function addSlot(){
+  slots.push({ label:'새 일정', start:'08:00', end:'09:00', color: PALETTE[slots.length % PALETTE.length] });
+  refresh();
+}
+function removeSlot(i){ slots.splice(i,1); refresh(); }
+
+/* ── High-res JPG export ── */
+function downloadJPG(){
+  const SCALE = 3;          // 3× = 매우 선명
+  const BASE  = 900;
+  const W = BASE, H = BASE;
+
+  const svgStr = buildSVG(W, H, true);
+  const blob = new Blob([svgStr], { type:'image/svg+xml;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const img  = new Image();
+
+  img.onload = () => {
+    const cv  = document.createElement('canvas');
+    cv.width  = W * SCALE;
+    cv.height = H * SCALE;
+    const ctx = cv.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.scale(SCALE, SCALE);
+    ctx.fillStyle = '#FDFCFB';
+    ctx.fillRect(0, 0, W, H);
+    ctx.drawImage(img, 0, 0, W, H);
+    URL.revokeObjectURL(url);
+    const a = document.createElement('a');
+    a.download = 'schedule.jpg';
+    a.href = cv.toDataURL('image/jpeg', 0.97);
+    a.click();
+  };
+  img.onerror = () => {
+    // SVG→Canvas fallback via data URI
+    const enc = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgStr)));
+    img.src = enc;
+  };
+  img.src = url;
+}
+
+function downloadHTML(){
+  const html = document.documentElement.outerHTML;
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  const a = document.createElement('a');
+  a.download = 'schedule.html';
+  a.href = URL.createObjectURL(blob);
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+refresh();
+</script>
+</body>
+</html>
