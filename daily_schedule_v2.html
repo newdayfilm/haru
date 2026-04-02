@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>하루 일정표</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Apple SD Gothic Neo','Noto Sans KR',Arial,sans-serif;background:#f7f7f5;color:#222;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:2rem 1rem;gap:1.5rem;}
+h1{font-size:20px;font-weight:500;color:#333;letter-spacing:-0.3px;}
+.clock-wrap{background:#fff;border:0.5px solid #e0e0e0;border-radius:16px;padding:1.5rem;display:flex;flex-direction:column;align-items:center;gap:1rem;width:520px;}
+.stat-row{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;}
+.stat{background:#f5f5f3;border-radius:8px;padding:10px 16px;text-align:center;}
+.stat-val{font-size:18px;font-weight:500;color:#222;}
+.stat-lbl{font-size:11px;color:#999;margin-top:2px;}
+.legend{display:flex;flex-wrap:wrap;justify-content:center;gap:6px 14px;max-width:460px;}
+.leg-item{display:flex;align-items:center;gap:5px;font-size:12px;color:#666;}
+.leg-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.panel{background:#fff;border:0.5px solid #e0e0e0;border-radius:16px;padding:1rem 1.25rem;width:520px;}
+.panel h3{font-size:14px;font-weight:500;color:#333;margin-bottom:10px;}
+.grid-head{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1.2fr) minmax(0,1.2fr) 32px 36px;gap:5px;margin-bottom:4px;}
+.gh{font-size:11px;color:#999;text-align:center;}
+.slot-row{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1.2fr) minmax(0,1.2fr) 32px 36px;gap:5px;align-items:center;margin-bottom:6px;}
+.slot-row input[type=text]{font-size:13px;padding:5px 8px;height:36px;border-radius:8px;border:0.5px solid #ddd;background:#f5f5f3;color:#222;width:100%;font-family:inherit;}
+.slot-row input[type=time]{font-size:13px;padding:5px 4px;height:36px;border-radius:8px;border:0.5px solid #ddd;background:#f5f5f3;color:#222;width:100%;min-width:0;font-family:inherit;}
+.slot-row input[type=color]{width:32px;height:36px;border:0.5px solid #ddd;border-radius:8px;cursor:pointer;padding:2px;background:#f5f5f3;}
+.del-btn{background:none;border:0.5px solid #ddd;border-radius:8px;cursor:pointer;font-size:16px;color:#888;height:36px;width:36px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.del-btn:hover{background:#fff0f0;color:#c00;}
+.btn-row{display:flex;gap:8px;margin-top:10px;}
+.btn{background:none;border:0.5px solid #ccc;border-radius:8px;cursor:pointer;font-size:13px;color:#555;padding:8px 14px;font-family:inherit;}
+.btn:hover{background:#f5f5f3;}
+@media(max-width:560px){
+  .clock-wrap,.panel{width:100%;}
+  svg#clock{width:100% !important;height:auto !important;}
+}
+</style>
+</head>
+<body>
+<h1>하루 일정표</h1>
+<div class="clock-wrap">
+  <svg id="clock" viewBox="0 0 460 460" xmlns="http://www.w3.org/2000/svg" style="width:460px;height:460px;"></svg>
+  <div class="stat-row" id="stats"></div>
+  <div class="legend" id="legend"></div>
+</div>
+<div class="panel">
+  <h3>일정 편집</h3>
+  <div class="grid-head">
+    <div class="gh">활동</div><div class="gh">시작</div><div class="gh">종료</div><div class="gh">색</div><div></div>
+  </div>
+  <div id="slots"></div>
+  <div class="btn-row">
+    <button class="btn" onclick="addSlot()">+ 추가</button>
+    <button class="btn" onclick="downloadJPG()">JPG 다운로드</button>
+  </div>
+</div>
+
+<script>
+const DEFAULT_COLORS=['#BEAED4','#7FC9C9','#F5A87B','#7EC97F','#F5D97B','#7BAFF5','#F57BA8','#A8D47B','#D4A0A0','#A0C4D4'];
+const START_H=6,END_H=18;
+
+let slots=[
+  {label:'기상/준비',start:'06:00',end:'07:00',color:'#BEAED4'},
+  {label:'오전 공부',start:'07:00',end:'12:00',color:'#7FC9C9'},
+  {label:'점심/휴식',start:'12:00',end:'13:30',color:'#F5A87B'},
+  {label:'오후 공부',start:'13:30',end:'17:30',color:'#7EC97F'},
+  {label:'운동',     start:'17:30',end:'18:00',color:'#F5D97B'},
+];
+
+function timeToMin(t){const[h,m]=t.split(':').map(Number);return h*60+m;}
+function minToAngle(totalMin){
+  const offset=totalMin-START_H*60;
+  return (offset/((END_H-START_H)*60))*2*Math.PI+Math.PI;
+}
+function polar(a,r,cx,cy){return{x:cx+r*Math.sin(a),y:cy-r*Math.cos(a)};}
+function slotDuration(s){let sm=timeToMin(s.start),em=timeToMin(s.end);if(em<sm)em+=1440;return em-sm;}
+function clamp(v,lo,hi){return Math.min(Math.max(v,lo),hi);}
+
+function buildSVG(W,H,forExport){
+  const cx=W/2,cy=H/2,R=Math.min(W,H)/2-38,iR=R*0.30;
+  let o=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">`;
+  if(forExport)o+=`<rect width="${W}" height="${H}" fill="#fff"/>`;
+  o+=`<circle cx="${cx}" cy="${cy}" r="${R}" fill="${forExport?'#f9f9f9':'#f5f4f0'}" stroke="#ddd" stroke-width="1"/>`;
+
+  {
+    const sa=minToAngle(END_H*60),ea=minToAngle(START_H*60+1440);
+    const p1=polar(sa,R-1,cx,cy),p2=polar(ea,R-1,cx,cy),p3=polar(ea,iR,cx,cy),p4=polar(sa,iR,cx,cy);
+    o+=`<path d="M${p1.x} ${p1.y} A${R-1} ${R-1} 0 1 1 ${p2.x} ${p2.y} L${p3.x} ${p3.y} A${iR} ${iR} 0 1 0 ${p4.x} ${p4.y}Z" fill="${forExport?'#ececec':'rgba(0,0,0,0.05)'}"/>`;
+    const lp=polar(0,(R+iR)/2,cx,cy);
+    o+=`<text x="${lp.x}" y="${lp.y}" text-anchor="middle" dominant-baseline="middle" font-size="11" font-family="Apple SD Gothic Neo,Arial,sans-serif" fill="${forExport?'#aaa':'#bbb'}">휴식/수면</text>`;
+  }
+
+  [0.33,0.66].forEach(f=>{
+    const r=iR+(R-iR)*f;
+    o+=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${forExport?'#e8e8e8':'rgba(0,0,0,0.05)'}" stroke-width="0.5" stroke-dasharray="3,4"/>`;
+  });
+
+  slots.forEach(sl=>{
+    const sm=clamp(timeToMin(sl.start),START_H*60,END_H*60);
+    const em=clamp(timeToMin(sl.end),START_H*60,END_H*60);
+    if(em<=sm)return;
+    const sa=minToAngle(sm),ea=minToAngle(em);
+    let diff=ea-sa;if(diff<0)diff+=2*Math.PI;if(diff<0.01)return;
+    const p1=polar(sa,R-1,cx,cy),p2=polar(ea,R-1,cx,cy),p3=polar(ea,iR,cx,cy),p4=polar(sa,iR,cx,cy);
+    const lg=diff>Math.PI?1:0;
+    o+=`<path d="M${p1.x} ${p1.y} A${R-1} ${R-1} 0 ${lg} 1 ${p2.x} ${p2.y} L${p3.x} ${p3.y} A${iR} ${iR} 0 ${lg} 0 ${p4.x} ${p4.y}Z" fill="${sl.color}" fill-opacity="0.9" stroke="#fff" stroke-width="2"/>`;
+    if(diff>0.16){
+      const lp=polar(sa+diff/2,(R+iR)/2+4,cx,cy);
+      const fs=diff>0.55?12:diff>0.28?10:9;
+      o+=`<text x="${lp.x}" y="${lp.y}" text-anchor="middle" dominant-baseline="middle" font-size="${fs}" font-family="Apple SD Gothic Neo,Noto Sans KR,Arial,sans-serif" fill="#333" font-weight="500">${sl.label}</text>`;
+    }
+  });
+
+  for(let h=START_H;h<=END_H;h++){
+    const ang=minToAngle(h*60);
+    const maj=(h%6===0||h===START_H||h===END_H),mid=h%3===0;
+    const tl=maj?16:mid?10:5;
+    const pa=polar(ang,R,cx,cy),pb=polar(ang,R-tl,cx,cy);
+    o+=`<line x1="${pa.x}" y1="${pa.y}" x2="${pb.x}" y2="${pb.y}" stroke="${maj?'#888':mid?'#aaa':'#ccc'}" stroke-width="${maj?1.5:0.7}"/>`;
+    if(mid||h===START_H||h===END_H){
+      const lp=polar(ang,R+20,cx,cy);
+      o+=`<text x="${lp.x}" y="${lp.y}" text-anchor="middle" dominant-baseline="middle" font-size="11" font-family="Arial,sans-serif" fill="${forExport?'#555':'#777'}">${String(h).padStart(2,'0')}:00</text>`;
+    }
+  }
+
+  o+=`<circle cx="${cx}" cy="${cy}" r="${iR}" fill="${forExport?'#fff':'#fff'}" stroke="#ddd" stroke-width="1"/>`;
+  const tot=slots.reduce((a,s)=>a+slotDuration(s),0);
+  const th=Math.floor(tot/60),tm=tot%60;
+  o+=`<text x="${cx}" y="${cy-8}" text-anchor="middle" font-size="12" font-family="Apple SD Gothic Neo,Arial,sans-serif" fill="${forExport?'#444':'#666'}" font-weight="500">활동 합계</text>`;
+  o+=`<text x="${cx}" y="${cy+10}" text-anchor="middle" font-size="12" font-family="Arial,sans-serif" fill="${forExport?'#666':'#999'}">${th}h ${tm}m</text>`;
+  o+=`</svg>`;
+  return o;
+}
+
+function drawClock(){document.getElementById('clock').innerHTML=buildSVG(460,460,false).replace(/^<svg[^>]*>/,'').replace(/<\/svg>$/,'');}
+
+function drawStats(){
+  const cats={공부:0,휴식:0,운동:0,기타:0};
+  slots.forEach(s=>{
+    const d=slotDuration(s);
+    if(/공부|학습|수업/.test(s.label))cats['공부']+=d;
+    else if(/휴식|점심|저녁|식사|밥/.test(s.label))cats['휴식']+=d;
+    else if(/운동|헬스|러닝/.test(s.label))cats['운동']+=d;
+    else cats['기타']+=d;
+  });
+  document.getElementById('stats').innerHTML=Object.entries(cats).filter(([,v])=>v>0).map(([k,v])=>{
+    const h=Math.floor(v/60),m=v%60;
+    return `<div class="stat"><div class="stat-val">${h}h${m?` ${m}m`:''}</div><div class="stat-lbl">${k}</div></div>`;
+  }).join('');
+}
+
+function drawLegend(){
+  document.getElementById('legend').innerHTML=slots.map(s=>{
+    const d=slotDuration(s),h=Math.floor(d/60),m=d%60;
+    return `<div class="leg-item"><div class="leg-dot" style="background:${s.color}"></div><span>${s.label} ${h}h${m?` ${m}m`:''}</span></div>`;
+  }).join('');
+}
+
+function drawInputs(){
+  const c=document.getElementById('slots');c.innerHTML='';
+  slots.forEach((s,i)=>{
+    const row=document.createElement('div');row.className='slot-row';
+    row.innerHTML=`<input type="text" value="${s.label}" onchange="slots[${i}].label=this.value;refresh()">
+<input type="time" value="${s.start}" onchange="slots[${i}].start=this.value;refresh()">
+<input type="time" value="${s.end}" onchange="slots[${i}].end=this.value;refresh()">
+<input type="color" value="${s.color}" oninput="slots[${i}].color=this.value;refresh()">
+<button class="del-btn" onclick="removeSlot(${i})">×</button>`;
+    c.appendChild(row);
+  });
+}
+
+function refresh(){drawClock();drawStats();drawLegend();drawInputs();}
+function addSlot(){slots.push({label:'새 일정',start:'08:00',end:'09:00',color:DEFAULT_COLORS[slots.length%DEFAULT_COLORS.length]});refresh();}
+function removeSlot(i){slots.splice(i,1);refresh();}
+
+function downloadJPG(){
+  const W=900,H=900,svgStr=buildSVG(W,H,true);
+  const blob=new Blob([svgStr],{type:'image/svg+xml'});
+  const url=URL.createObjectURL(blob);
+  const img=new Image();
+  img.onload=()=>{
+    const cv=document.createElement('canvas');cv.width=W;cv.height=H;
+    const ctx=cv.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);ctx.drawImage(img,0,0);
+    URL.revokeObjectURL(url);
+    const a=document.createElement('a');a.download='my_schedule.jpg';a.href=cv.toDataURL('image/jpeg',0.95);a.click();
+  };
+  img.src=url;
+}
+
+refresh();
+</script>
+</body>
+</html>
