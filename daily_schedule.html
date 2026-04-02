@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>하루 일정표</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', Arial, sans-serif; background: #f8f8f6; color: #222; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 2rem 1rem; gap: 1.5rem; }
+  h1 { font-size: 20px; font-weight: 500; color: #333; letter-spacing: -0.3px; }
+  .clock-area { width: 460px; height: 460px; }
+  .clock-area svg { width: 100%; height: 100%; }
+  .legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 16px; max-width: 500px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #666; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .edit-panel { background: #fff; border: 0.5px solid #ddd; border-radius: 12px; padding: 1rem 1.25rem; width: 500px; }
+  .edit-panel h3 { font-size: 14px; font-weight: 500; color: #333; margin-bottom: 10px; }
+  .col-labels { display: grid; grid-template-columns: minmax(0,2fr) minmax(0,1.2fr) minmax(0,1.2fr) 36px; gap: 6px; margin-bottom: 4px; }
+  .col-label { font-size: 11px; color: #999; text-align: center; }
+  .slot-row { display: grid; grid-template-columns: minmax(0,2fr) minmax(0,1.2fr) minmax(0,1.2fr) 36px; gap: 6px; align-items: center; margin-bottom: 6px; }
+  .slot-row input[type=text] { font-size: 13px; padding: 4px 8px; height: 36px; border-radius: 8px; border: 0.5px solid #ddd; background: #f5f5f3; color: #222; width: 100%; }
+  .slot-row input[type=time] { font-size: 13px; padding: 4px 6px; height: 36px; border-radius: 8px; border: 0.5px solid #ddd; background: #f5f5f3; color: #222; width: 100%; min-width: 0; }
+  .del-btn { background: none; border: 0.5px solid #ddd; border-radius: 8px; cursor: pointer; font-size: 16px; color: #888; height: 36px; width: 36px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .del-btn:hover { background: #fff0f0; color: #c00; }
+  .btn-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .add-btn, .dl-btn { background: none; border: 0.5px solid #ccc; border-radius: 8px; cursor: pointer; font-size: 13px; color: #555; padding: 8px 14px; font-family: inherit; }
+  .add-btn:hover, .dl-btn:hover { background: #f5f5f3; }
+  @media (max-width: 540px) {
+    .clock-area { width: 320px; height: 320px; }
+    .edit-panel { width: 100%; }
+  }
+</style>
+</head>
+<body>
+<h1>하루 일정표</h1>
+<div class="clock-area">
+  <svg id="clock" viewBox="0 0 460 460" xmlns="http://www.w3.org/2000/svg"></svg>
+</div>
+<div class="legend" id="legend"></div>
+<div class="edit-panel">
+  <h3>일정 편집</h3>
+  <div class="col-labels">
+    <div class="col-label">활동</div>
+    <div class="col-label">시작</div>
+    <div class="col-label">종료</div>
+    <div></div>
+  </div>
+  <div id="slots"></div>
+  <div class="btn-row">
+    <button class="add-btn" onclick="addSlot()">+ 일정 추가</button>
+    <button class="dl-btn" onclick="downloadJPG()">JPG 다운로드</button>
+  </div>
+</div>
+
+<script>
+const COLORS=['#7FC97F','#BEAED4','#FDC086','#386CB0','#F0027F','#BF5B17','#1FB3A7','#E6AB02','#A6761D','#888888'];
+
+let slots=[
+  {label:'수면',start:'23:00',end:'06:00',color:COLORS[0]},
+  {label:'아침/준비',start:'06:00',end:'07:30',color:COLORS[1]},
+  {label:'공부',start:'07:30',end:'12:00',color:COLORS[2]},
+  {label:'점심/휴식',start:'12:00',end:'13:30',color:COLORS[3]},
+  {label:'공부',start:'13:30',end:'18:00',color:COLORS[4]},
+  {label:'운동',start:'18:00',end:'19:30',color:COLORS[5]},
+  {label:'저녁/자유',start:'19:30',end:'22:00',color:COLORS[6]},
+  {label:'취침 준비',start:'22:00',end:'23:00',color:COLORS[7]},
+];
+
+function timeToAngle(t){
+  const[h,m]=t.split(':').map(Number);
+  const deg=(h*60+m)/1440*360+90;
+  return (deg%360)*Math.PI/180;
+}
+function polar(a,r,cx,cy){return{x:cx+r*Math.sin(a),y:cy-r*Math.cos(a)};}
+
+function buildSVGString(w,h,forExport){
+  const cx=w/2,cy=h/2,R=Math.min(w,h)/2-30,innerR=R*0.28;
+  let s=`<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">`;
+  if(forExport) s+=`<rect width="${w}" height="${h}" fill="#ffffff"/>`;
+  s+=`<circle cx="${cx}" cy="${cy}" r="${R}" fill="${forExport?'#f5f5f5':'#f0efe8'}" stroke="#cccccc" stroke-width="1"/>`;
+
+  slots.forEach(sl=>{
+    let sa=timeToAngle(sl.start),ea=timeToAngle(sl.end);
+    if(ea<=sa) ea+=2*Math.PI;
+    const diff=ea-sa;
+    if(diff<0.001) return;
+    const p1=polar(sa,R-2,cx,cy),p2=polar(ea,R-2,cx,cy),p3=polar(ea,innerR,cx,cy),p4=polar(sa,innerR,cx,cy);
+    const lg=diff>Math.PI?1:0;
+    const d=`M${p1.x} ${p1.y} A${R-2} ${R-2} 0 ${lg} 1 ${p2.x} ${p2.y} L${p3.x} ${p3.y} A${innerR} ${innerR} 0 ${lg} 0 ${p4.x} ${p4.y}Z`;
+    s+=`<path d="${d}" fill="${sl.color}" fill-opacity="0.85" stroke="#ffffff" stroke-width="1.5"/>`;
+    if(diff>0.22){
+      const ma=sa+diff/2,lr=(R+innerR)/2,lp=polar(ma,lr,cx,cy);
+      const fs=diff>0.6?11:9;
+      s+=`<text x="${lp.x}" y="${lp.y}" text-anchor="middle" dominant-baseline="middle" font-size="${fs}" font-family="Arial,sans-serif" fill="#222" font-weight="500">${sl.label}</text>`;
+    }
+  });
+
+  for(let hh=0;hh<24;hh++){
+    const ang=timeToAngle(`${String(hh).padStart(2,'0')}:00`);
+    const maj=hh%3===0;
+    const ti=R-(maj?14:8);
+    const pa=polar(ang,R,cx,cy),pb=polar(ang,ti,cx,cy);
+    s+=`<line x1="${pa.x}" y1="${pa.y}" x2="${pb.x}" y2="${pb.y}" stroke="#aaaaaa" stroke-width="${maj?1.5:0.8}"/>`;
+    if(maj){
+      const lp=polar(ang,R+18,cx,cy);
+      s+=`<text x="${lp.x}" y="${lp.y}" text-anchor="middle" dominant-baseline="middle" font-size="11" font-family="Arial,sans-serif" fill="#666">${String(hh).padStart(2,'0')}:00</text>`;
+    }
+  }
+
+  s+=`<circle cx="${cx}" cy="${cy}" r="${innerR}" fill="#ffffff" stroke="#cccccc" stroke-width="1"/>`;
+  s+=`<text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="middle" font-size="13" font-family="Arial,sans-serif" fill="#666" font-weight="500">하루 일정</text>`;
+  s+=`</svg>`;
+  return s;
+}
+
+function drawClock(){
+  const el=document.getElementById('clock');
+  const inner=buildSVGString(460,460,false).replace(/^<svg[^>]*>/,'').replace(/<\/svg>$/,'');
+  el.innerHTML=inner;
+}
+
+function drawLegend(){
+  const leg=document.getElementById('legend');
+  leg.innerHTML='';
+  slots.forEach(s=>{
+    const item=document.createElement('div');
+    item.className='legend-item';
+    item.innerHTML=`<div class="legend-dot" style="background:${s.color}"></div><span>${s.label} (${s.start}~${s.end})</span>`;
+    leg.appendChild(item);
+  });
+}
+
+function drawSlotInputs(){
+  const c=document.getElementById('slots');
+  c.innerHTML='';
+  slots.forEach((s,i)=>{
+    const row=document.createElement('div');
+    row.className='slot-row';
+    row.innerHTML=`<input type="text" value="${s.label}" onchange="slots[${i}].label=this.value;refresh()"/>
+<input type="time" value="${s.start}" onchange="slots[${i}].start=this.value;refresh()"/>
+<input type="time" value="${s.end}" onchange="slots[${i}].end=this.value;refresh()"/>
+<button class="del-btn" onclick="removeSlot(${i})">×</button>`;
+    c.appendChild(row);
+  });
+}
+
+function refresh(){drawClock();drawLegend();drawSlotInputs();}
+function addSlot(){const color=COLORS[slots.length%COLORS.length];slots.push({label:'새 일정',start:'08:00',end:'09:00',color});refresh();}
+function removeSlot(i){slots.splice(i,1);refresh();}
+
+function downloadJPG(){
+  const size=800;
+  const svgStr=buildSVGString(size,size,true);
+  const blob=new Blob([svgStr],{type:'image/svg+xml'});
+  const url=URL.createObjectURL(blob);
+  const img=new Image();
+  img.onload=function(){
+    const canvas=document.createElement('canvas');
+    canvas.width=size;canvas.height=size;
+    const ctx=canvas.getContext('2d');
+    ctx.fillStyle='#ffffff';
+    ctx.fillRect(0,0,size,size);
+    ctx.drawImage(img,0,0);
+    URL.revokeObjectURL(url);
+    const link=document.createElement('a');
+    link.download='daily_schedule.jpg';
+    link.href=canvas.toDataURL('image/jpeg',0.95);
+    link.click();
+  };
+  img.src=url;
+}
+
+refresh();
+</script>
+</body>
+</html>
